@@ -3,7 +3,6 @@ import Models.Customer;
 import Models.User;
 import Store.ECommerceStore;
 
-import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -11,13 +10,21 @@ import java.util.Scanner;
 public class Main {
     static List<User> users = new ArrayList<>();
     static final String USER_FILE = "users.txt";
-
     public static void main(String[] args) {
-        loadUsersFromFile(); // 🔁 Load users from file on app start
+        
+        // Add default admin
+        users.add(new Admin("admin", "admin123"));
+
+        // Add some default products
+        ECommerceStore.addProduct("Laptop", 55000, 5);
+        ECommerceStore.addProduct("Smartphone", 25000, 10);
+        ECommerceStore.addProduct("Headphones", 2000, 15);
+        ECommerceStore.addProduct("Keyboard", 1500, 8);
+        ECommerceStore.addProduct("Mouse", 800, 12);
 
         Scanner sc = new Scanner(System.in);
         int choice;
-
+        
         do {
             System.out.println("\n--- Welcome to E-Commerce Store ---");
             System.out.println("1. Admin Login");
@@ -26,14 +33,14 @@ public class Main {
             System.out.println("4. Exit");
             System.out.print("Enter choice: ");
             choice = sc.nextInt();
-            sc.nextLine();
+            sc.nextLine(); // clear buffer
 
             switch (choice) {
                 case 1 -> login("admin");
                 case 2 -> registerCustomer();
                 case 3 -> login("customer");
                 case 4 -> System.out.println("Thank you for visiting!");
-                default -> System.out.println("Invalid option. Try again.");
+                default -> System.out.println("Invalid option. Please try again.");
             }
 
         } while (choice != 4);
@@ -45,9 +52,7 @@ public class Main {
         String uname = sc.nextLine();
         System.out.print("Enter password: ");
         String pass = sc.nextLine();
-
         users.add(new Customer(uname, pass));
-        saveUsersToFile(); // 💾 Save new user to file
         System.out.println("Registration successful! You can now log in.");
     }
 
@@ -71,50 +76,5 @@ public class Main {
         }
 
         System.out.println("Login failed. Please check your credentials.");
-    }
-
-    // ✅ Add this function inside Main class
-    static void saveUsersToFile() {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
-            for (User u : users) {
-                String type = (u instanceof Admin) ? "admin" : "customer";
-                writer.write(type + "," + u.getUsername() + "," + u.getPassword());
-                writer.newLine();
-            }
-        } catch (IOException e) {
-            System.out.println("Error saving users: " + e.getMessage());
-        }
-    }
-
-    // ✅ Add this function inside Main class
-    static void loadUsersFromFile() {
-        File file = new File(USER_FILE);
-        if (!file.exists()) {
-            // If file not found, create default admin
-            users.add(new Admin("admin", "admin123"));
-            saveUsersToFile();
-            return;
-        }
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-            String line;
-            users.clear();
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 3) {
-                    String type = parts[0];
-                    String uname = parts[1];
-                    String pass = parts[2];
-
-                    if (type.equals("admin")) {
-                        users.add(new Admin(uname, pass));
-                    } else if (type.equals("customer")) {
-                        users.add(new Customer(uname, pass));
-                    }
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Error loading users: " + e.getMessage());
-        }
     }
 }
