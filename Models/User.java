@@ -12,4 +12,7 @@ public abstract class User {
     public abstract void showMenu();
     public String getUsername() { return username; }
     public boolean checkPassword(String pass) { return password.equals(pass); }
+    public String getPassword() {
+        return password;
+    }
 }

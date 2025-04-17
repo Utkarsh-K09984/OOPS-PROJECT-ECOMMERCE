@@ -74,4 +74,3 @@ public class Customer extends User {
         cart.clear();
     }
 }
- 

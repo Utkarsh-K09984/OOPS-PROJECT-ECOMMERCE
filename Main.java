@@ -1,30 +1,29 @@
 import Models.Admin;
 import Models.Customer;
 import Models.User;
-import Store.ECommerceStore;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
 public class Main {
     static List<User> users = new ArrayList<>();
-    static final String USER_FILE = "users.txt";
-    public static void main(String[] args) {
-        
-        // Add default admin
-        users.add(new Admin("admin", "admin123"));
+    private static final String ADMIN_FILE = "admins.txt";
+    private static final String CUSTOMER_FILE = "customers.txt";
 
-        // Add some default products
-        ECommerceStore.addProduct("Laptop", 55000, 5);
-        ECommerceStore.addProduct("Smartphone", 25000, 10);
-        ECommerceStore.addProduct("Headphones", 2000, 15);
-        ECommerceStore.addProduct("Keyboard", 1500, 8);
-        ECommerceStore.addProduct("Mouse", 800, 12);
+    public static void main(String[] args) {
+        loadUsers();
+
+        // Add default admin if not present
+        if (users.stream().noneMatch(u -> u instanceof Admin)) {
+            users.add(new Admin("admin", "admin123"));
+            saveUsers();
+        }
 
         Scanner sc = new Scanner(System.in);
         int choice;
-        
+
         do {
             System.out.println("\n--- Welcome to E-Commerce Store ---");
             System.out.println("1. Admin Login");
@@ -53,6 +52,7 @@ public class Main {
         System.out.print("Enter password: ");
         String pass = sc.nextLine();
         users.add(new Customer(uname, pass));
+        saveUsers();
         System.out.println("Registration successful! You can now log in.");
     }
 
@@ -76,5 +76,49 @@ public class Main {
         }
 
         System.out.println("Login failed. Please check your credentials.");
+    }
+
+    private static void loadUsers() {
+        try (BufferedReader br = new BufferedReader(new FileReader(ADMIN_FILE))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                String username = parts[0];
+                String password = parts[1];
+                users.add(new Admin(username, password));
+            }
+        } catch (IOException e) {
+            System.out.println("No existing admin data found.");
+        }
+
+        try (BufferedReader br = new BufferedReader(new FileReader(CUSTOMER_FILE))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                String[] parts = line.split(",");
+                String username = parts[0];
+                String password = parts[1];
+                users.add(new Customer(username, password));
+            }
+        } catch (IOException e) {
+            System.out.println("No existing customer data found.");
+        }
+    }
+
+    private static void saveUsers() {
+        try (BufferedWriter adminWriter = new BufferedWriter(new FileWriter(ADMIN_FILE));
+             BufferedWriter customerWriter = new BufferedWriter(new FileWriter(CUSTOMER_FILE))) {
+
+            for (User u : users) {
+                if (u instanceof Admin) {
+                    adminWriter.write(u.getUsername() + "," + u.getPassword());
+                    adminWriter.newLine();
+                } else if (u instanceof Customer) {
+                    customerWriter.write(u.getUsername() + "," + u.getPassword());
+                    customerWriter.newLine();
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving users.");
+        }
     }
 }

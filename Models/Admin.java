@@ -9,6 +9,7 @@ public class Admin extends User implements UserOperations {
     public Admin(String username, String password) {
         super(username, password);
     }
+    
     @Override
     public void showMenu() {
         Scanner sc = new Scanner(System.in);
