@@ -9,8 +9,8 @@ import java.util.Scanner;
 
 public class Main {
     static List<User> users = new ArrayList<>();
-    private static final String ADMIN_FILE = "admins.txt";
-    private static final String CUSTOMER_FILE = "customers.txt";
+    private static final String ADMIN_FILE = "data/admins.txt";
+    private static final String CUSTOMER_FILE = "data/customers.txt";
 
     public static void main(String[] args) {
         loadUsers();
@@ -43,6 +43,7 @@ public class Main {
             }
 
         } while (choice != 4);
+        sc.close();
     }
 
     static void registerCustomer() {
@@ -54,6 +55,7 @@ public class Main {
         users.add(new Customer(uname, pass));
         saveUsers();
         System.out.println("Registration successful! You can now log in.");
+        sc.close();
     }
 
     static void login(String type) {
@@ -62,6 +64,7 @@ public class Main {
         String uname = sc.nextLine();
         System.out.print("Enter password: ");
         String pass = sc.nextLine();
+        sc.close();
 
         for (User u : users) {
             if (u.getUsername().equals(uname) && u.checkPassword(pass)) {

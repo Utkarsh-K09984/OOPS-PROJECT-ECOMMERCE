@@ -36,6 +36,7 @@ public class Customer extends User {
                 default -> System.out.println("Invalid option.");
             }
         } while (choice != 5);
+        sc.close();
     }
 
     private void addToCart() {
@@ -49,6 +50,7 @@ public class Customer extends User {
         } else {
             System.out.println("Invalid product or out of stock.");
         }
+        sc.close();
     }
 
     private void viewCart() {

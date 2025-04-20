@@ -30,6 +30,7 @@ public class Admin extends User implements UserOperations {
                 default -> System.out.println("Invalid option.");
             }
         } while (choice != 4);
+        sc.close();
     }
 
     @Override
@@ -42,6 +43,7 @@ public class Admin extends User implements UserOperations {
         System.out.print("Enter quantity: ");
         int quantity = sc.nextInt();
         ECommerceStore.addProduct(name, price, quantity);
+        sc.close();
     }
 
     @Override
@@ -50,5 +52,6 @@ public class Admin extends User implements UserOperations {
         System.out.print("Enter product ID to remove: ");
         int id = sc.nextInt();
         ECommerceStore.removeProduct(id);
+        sc.close();
     }
 }
