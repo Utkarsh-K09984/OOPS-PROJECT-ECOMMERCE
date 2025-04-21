@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ECommerceStore {
-    private static final String PRODUCT_FILE = "products.txt";
+    private static final String PRODUCT_FILE = "data/products.txt";
     private static List<Product> products = new ArrayList<>();
     private static int productIdCounter = 1;
 

@@ -9,8 +9,8 @@ import java.util.Scanner;
 
 public class Main {
     static List<User> users = new ArrayList<>();
-    private static final String ADMIN_FILE = "admins.txt";
-    private static final String CUSTOMER_FILE = "customers.txt";
+    private static final String ADMIN_FILE = "data/admins.txt";
+    private static final String CUSTOMER_FILE = "data/customers.txt";
 
     public static void main(String[] args) {
         loadUsers();

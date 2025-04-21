@@ -62,7 +62,7 @@ public class Customer extends User {
             System.out.println(p);
             total += p.getPrice();
         }
-        System.out.println("Total: ₹" + total);
+        System.out.println("Total: $" + total);
     }
 
     private void checkout() {
