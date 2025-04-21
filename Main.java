@@ -43,7 +43,6 @@ public class Main {
             }
 
         } while (choice != 4);
-        sc.close();
     }
 
     static void registerCustomer() {
@@ -55,7 +54,6 @@ public class Main {
         users.add(new Customer(uname, pass));
         saveUsers();
         System.out.println("Registration successful! You can now log in.");
-        sc.close();
     }
 
     static void login(String type) {
@@ -64,7 +62,6 @@ public class Main {
         String uname = sc.nextLine();
         System.out.print("Enter password: ");
         String pass = sc.nextLine();
-        sc.close();
 
         for (User u : users) {
             if (u.getUsername().equals(uname) && u.checkPassword(pass)) {
