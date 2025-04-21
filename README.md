@@ -74,7 +74,7 @@ classDiagram
         -static saveProducts()
     }
     
-    interface UserOperations {
+    class UserOperations {
         +addProduct()
         +removeProduct()
     }
