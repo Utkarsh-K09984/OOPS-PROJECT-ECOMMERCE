@@ -2,6 +2,7 @@
 *.class
 
 # Output directories
+/dist/
 /out/
 /bin/
 /target/

@@ -30,7 +30,7 @@ public class ECommerceStore {
 
     public static void listProducts() {
         System.out.println("\n--- Product List ---");
-        if (products.isEmpty()) {
+        if (products.isEmpty()){
             System.out.println("No products available.");
         } else {
             for (Product p : products) {
@@ -46,6 +46,7 @@ public class ECommerceStore {
             }
         }
         return null;
+
     }
 
     private static void loadProducts() {
@@ -59,7 +60,7 @@ public class ECommerceStore {
                     double price = Double.parseDouble(parts[2]);
                     int quantity = Integer.parseInt(parts[3]);
                     products.add(new Product(id, name, price, quantity));
-                    productIdCounter = Math.max(productIdCounter, id + 1); // Update counter
+                    productIdCounter = Math.max(productIdCounter, id + 1);
                 }
             }
         } catch (IOException e) {

@@ -1,5 +1,5 @@
 1,Laptop,55000.0,5
 2,Smartphone,25000.0,10
 3,Headphones,2000.0,15
-4,Keyboard,1500.0,8
-5,Mouse,800.0,12
+6,touchpad,700.0,8
+8,earphones,80.0,80
