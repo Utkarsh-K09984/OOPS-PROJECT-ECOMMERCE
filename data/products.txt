@@ -2,4 +2,5 @@
 2,Smartphone,25000.0,10
 3,Headphones,2000.0,15
 4,Keyboard,1500.0,8
-5,Mouse,800.0,12
+5,Mouse,900.0,15
+6,IPhone,60000.0,10

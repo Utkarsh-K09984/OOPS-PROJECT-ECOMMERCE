@@ -16,20 +16,16 @@ public class ECommerceStore {
     }
 
     public static void addProduct(String name, double price, int quantity) {
-        Product p = new Product(productIdCounter++, name, price, quantity);
-        products.add(p);
+        products.add(new Product(productIdCounter++, name, price, quantity));
         saveProducts();
-        System.out.println("Product added.");
     }
 
     public static void removeProduct(int id) {
         products.removeIf(p -> p.getId() == id);
         saveProducts();
-        System.out.println("Product removed.");
     }
 
     public static void listProducts() {
-        System.out.println("\n--- Product List ---");
         if (products.isEmpty()) {
             System.out.println("No products available.");
         } else {
@@ -46,6 +42,23 @@ public class ECommerceStore {
             }
         }
         return null;
+    }
+    
+    public static List<Product> getAllProducts() {
+        return new ArrayList<>(products); // Return a copy to protect the original list
+    }
+    
+    public static boolean updateProduct(int id, String name, double price, int quantity) {
+        for (Product p : products) {
+            if (p.getId() == id) {
+                p.setName(name);
+                p.setPrice(price);
+                p.setQuantity(quantity);
+                saveProducts();
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void loadProducts() {
