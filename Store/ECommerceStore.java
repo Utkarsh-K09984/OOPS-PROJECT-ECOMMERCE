@@ -42,6 +42,7 @@ public class ECommerceStore {
             }
         }
         return null;
+
     }
     
     public static List<Product> getAllProducts() {
@@ -72,7 +73,7 @@ public class ECommerceStore {
                     double price = Double.parseDouble(parts[2]);
                     int quantity = Integer.parseInt(parts[3]);
                     products.add(new Product(id, name, price, quantity));
-                    productIdCounter = Math.max(productIdCounter, id + 1); // Update counter
+                    productIdCounter = Math.max(productIdCounter, id + 1);
                 }
             }
         } catch (IOException e) {

@@ -1,6 +1,6 @@
 package Interfaces;
 
-public interface UserOperations {
+public interface AdminOperations {
     void addProduct();
     void removeProduct();
 }
