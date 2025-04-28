@@ -3,17 +3,16 @@ package GUI;
 import Models.Admin;
 import Models.Customer;
 import Models.User;
+import utils.DatabaseConnection;
 
 import javax.swing.*;
 import java.awt.*;
-import java.io.*;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ECommerceGUI extends JFrame {
     private static List<User> users = new ArrayList<>();
-    private static final String ADMIN_FILE = "data/admins.txt";
-    private static final String CUSTOMER_FILE = "data/customers.txt";
     
     private CardLayout cardLayout;
     private JPanel mainPanel;
@@ -58,8 +57,7 @@ public class ECommerceGUI extends JFrame {
         
         // Add default admin if not present
         if (users.stream().noneMatch(u -> u instanceof Admin)) {
-            users.add(new Admin("admin", "admin123"));
-            saveUsers();
+            ensureDefaultAdmin();
         }
     }
     
@@ -68,84 +66,127 @@ public class ECommerceGUI extends JFrame {
     }
     
     public void loginUser(String username, String password, String type) {
-        for (User u : users) {
-            if (u.getUsername().equals(username) && u.checkPassword(password)) {
-                if (type.equals("admin") && u instanceof Admin) {
-                    adminPanel.setCurrentUser((Admin) u);
-                    showPanel("admin");
-                    return;
-                } else if (type.equals("customer") && u instanceof Customer) {
-                    customerPanel.setCurrentUser((Customer) u);
-                    showPanel("customer");
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                 "SELECT * FROM users WHERE username = ? AND password = ? AND user_type = ?")) {
+            
+            stmt.setString(1, username);
+            stmt.setString(2, password);
+            stmt.setString(3, type);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    if (type.equals("admin")) {
+                        Admin admin = new Admin(username, password);
+                        adminPanel.setCurrentUser(admin);
+                        showPanel("admin");
+                    } else if (type.equals("customer")) {
+                        Customer customer = new Customer(username, password);
+                        customerPanel.setCurrentUser(customer);
+                        showPanel("customer");
+                    }
                     return;
                 }
             }
+        } catch (SQLException e) {
+            System.err.println("Error logging in user");
+            e.printStackTrace();
         }
+        
         JOptionPane.showMessageDialog(this, "Login failed. Please check your credentials.", 
                 "Login Error", JOptionPane.ERROR_MESSAGE);
     }
     
     public void registerCustomer(String username, String password) {
-        // Check if username already exists
-        if (users.stream().anyMatch(u -> u.getUsername().equals(username))) {
-            JOptionPane.showMessageDialog(this, "Username already exists. Please choose another.",
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement checkStmt = conn.prepareStatement(
+                 "SELECT COUNT(*) FROM users WHERE username = ?")) {
+            
+            checkStmt.setString(1, username);
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                rs.next();
+                if (rs.getInt(1) > 0) {
+                    JOptionPane.showMessageDialog(this, "Username already exists. Please choose another.",
+                            "Registration Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+            }
+            
+            try (PreparedStatement insertStmt = conn.prepareStatement(
+                     "INSERT INTO users (username, password, user_type) VALUES (?, ?, ?)")) {
+                
+                insertStmt.setString(1, username);
+                insertStmt.setString(2, password);
+                insertStmt.setString(3, "customer");
+                
+                int affectedRows = insertStmt.executeUpdate();
+                
+                if (affectedRows > 0) {
+                    Customer newCustomer = new Customer(username, password);
+                    users.add(newCustomer);
+                    JOptionPane.showMessageDialog(this, "Registration successful! You can now log in.",
+                            "Registration Success", JOptionPane.INFORMATION_MESSAGE);
+                    showPanel("login");
+                } else {
+                    JOptionPane.showMessageDialog(this, "Registration failed. Please try again.",
+                            "Registration Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error registering customer");
+            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Registration failed due to a database error.",
                     "Registration Error", JOptionPane.ERROR_MESSAGE);
-            return;
         }
-        
-        Customer newCustomer = new Customer(username, password);
-        users.add(newCustomer);
-        saveUsers();
-        JOptionPane.showMessageDialog(this, "Registration successful! You can now log in.",
-                "Registration Success", JOptionPane.INFORMATION_MESSAGE);
-        showPanel("login");
     }
     
     private void loadUsers() {
-        try (BufferedReader br = new BufferedReader(new FileReader(ADMIN_FILE))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 2) {
-                    String username = parts[0];
-                    String password = parts[1];
+        users.clear();
+        
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT * FROM users")) {
+            
+            while (rs.next()) {
+                String username = rs.getString("username");
+                String password = rs.getString("password");
+                String userType = rs.getString("user_type");
+                
+                if (userType.equals("admin")) {
                     users.add(new Admin(username, password));
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("No existing admin data found.");
-        }
-
-        try (BufferedReader br = new BufferedReader(new FileReader(CUSTOMER_FILE))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 2) {
-                    String username = parts[0];
-                    String password = parts[1];
+                } else if (userType.equals("customer")) {
                     users.add(new Customer(username, password));
                 }
             }
-        } catch (IOException e) {
-            System.out.println("No existing customer data found.");
+        } catch (SQLException e) {
+            System.err.println("Error loading users from database");
+            e.printStackTrace();
         }
     }
-
-    private void saveUsers() {
-        try (BufferedWriter adminWriter = new BufferedWriter(new FileWriter(ADMIN_FILE));
-             BufferedWriter customerWriter = new BufferedWriter(new FileWriter(CUSTOMER_FILE))) {
-
-            for (User u : users) {
-                if (u instanceof Admin) {
-                    adminWriter.write(u.getUsername() + "," + u.getPassword());
-                    adminWriter.newLine();
-                } else if (u instanceof Customer) {
-                    customerWriter.write(u.getUsername() + "," + u.getPassword());
-                    customerWriter.newLine();
+    
+    private void ensureDefaultAdmin() {
+        try (Connection conn = DatabaseConnection.getInstance().getConnection();
+             PreparedStatement checkStmt = conn.prepareStatement(
+                 "SELECT COUNT(*) FROM users WHERE user_type = 'admin'")) {
+            
+            try (ResultSet rs = checkStmt.executeQuery()) {
+                rs.next();
+                if (rs.getInt(1) == 0) {
+                    try (PreparedStatement insertStmt = conn.prepareStatement(
+                             "INSERT INTO users (username, password, user_type) VALUES (?, ?, ?)")) {
+                        
+                        insertStmt.setString(1, "admin");
+                        insertStmt.setString(2, "admin123");
+                        insertStmt.setString(3, "admin");
+                        
+                        insertStmt.executeUpdate();
+                        users.add(new Admin("admin", "admin123"));
+                    }
                 }
             }
-        } catch (IOException e) {
-            System.out.println("Error saving users.");
+        } catch (SQLException e) {
+            System.err.println("Error ensuring default admin");
+            e.printStackTrace();
         }
     }
     

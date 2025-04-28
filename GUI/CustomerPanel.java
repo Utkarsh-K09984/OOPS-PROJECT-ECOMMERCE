@@ -114,23 +114,7 @@ public class CustomerPanel extends JPanel {
             
             Product product = ECommerceStore.getProductById(id);
             if (product != null) {
-                // Store original quantity if this is the first time adding this product
-                if (!originalQuantities.containsKey(product.getId())) {
-                    originalQuantities.put(product.getId(), product.getQuantity());
-                }
-                
-                // Decrease product quantity by 1
-                product.setQuantity(product.getQuantity() - 1);
-                
-                // Add product to cart
-                cart.add(product);
-                
-                // Update tables
-                updateCartTable();
-                refreshProductTable();
-                
-                JOptionPane.showMessageDialog(parent, "Product added to cart!", 
-                        "Success", JOptionPane.INFORMATION_MESSAGE);
+                addProductToCart(product);
             }
         });
         
@@ -194,7 +178,13 @@ public class CustomerPanel extends JPanel {
             // Restore one quantity to the product in inventory
             Product inventoryProduct = ECommerceStore.getProductById(removedProduct.getId());
             if (inventoryProduct != null) {
-                inventoryProduct.setQuantity(inventoryProduct.getQuantity() + 1);
+                int newQuantity = inventoryProduct.getQuantity() + 1;
+                ECommerceStore.updateProduct(
+                    inventoryProduct.getId(), 
+                    inventoryProduct.getName(), 
+                    inventoryProduct.getPrice(), 
+                    newQuantity
+                );
             }
             
             // Update tables
@@ -214,8 +204,32 @@ public class CustomerPanel extends JPanel {
                     "Confirm Clear", JOptionPane.YES_NO_OPTION);
             
             if (confirm == JOptionPane.YES_OPTION) {
-                // Restore all original quantities
-                restoreOriginalQuantities();
+                // Restore quantities to database for all products in cart
+                Map<Integer, Integer> productCounts = new HashMap<>();
+                
+                // Count how many of each product is in the cart
+                for (Product p: cart) {
+                    int id = p.getId();
+                    productCounts.put(id, productCounts.getOrDefault(id, 0) + 1);
+                }
+                
+                // Restore quantities to the database
+                for (Map.Entry<Integer, Integer> entry: productCounts.entrySet()) {
+                    int productId = entry.getKey();
+                    int count = entry.getValue();
+                    
+                    Product product = ECommerceStore.getProductById(productId);
+                    if (product != null) {
+                        // Increase the quantity by the count of this product in cart
+                        int newQuantity = product.getQuantity() + count;
+                        ECommerceStore.updateProduct(
+                            productId, 
+                            product.getName(), 
+                            product.getPrice(), 
+                            newQuantity
+                        );
+                    }
+                }
                 
                 // Clear cart
                 cart.clear();
@@ -224,6 +238,9 @@ public class CustomerPanel extends JPanel {
                 // Update tables
                 updateCartTable();
                 refreshProductTable();
+                
+                JOptionPane.showMessageDialog(parent, "Cart cleared successfully!", 
+                        "Cart Cleared", JOptionPane.INFORMATION_MESSAGE);
             }
         });
         
@@ -242,7 +259,7 @@ public class CustomerPanel extends JPanel {
                 // Calculate total
                 double total = cart.stream().mapToDouble(Product::getPrice).sum();
                 
-                // Save the updated quantities to file
+                // Save the updated quantities to database
                 ECommerceStore.saveProducts();
                 
                 JOptionPane.showMessageDialog(parent, 
@@ -271,7 +288,7 @@ public class CustomerPanel extends JPanel {
         // Clear existing data
         productTableModel.setRowCount(0);
         
-        // Get product list from store
+        // Get product list from store - this refreshes the products from the database
         List<Product> products = ECommerceStore.getAllProducts();
         
         if (products != null) {
@@ -304,21 +321,37 @@ public class CustomerPanel extends JPanel {
         totalLabel.setText("Total: $" + String.format("%.2f", total));
     }
     
-    // Helper method to restore original quantities
-    private void restoreOriginalQuantities() {
-        for (Map.Entry<Integer, Integer> entry : originalQuantities.entrySet()) {
-            Product product = ECommerceStore.getProductById(entry.getKey());
-            if (product != null) {
-                product.setQuantity(entry.getValue());
-            }
-        }
-    }
-    
     public void setCurrentUser(Customer user) {
         this.currentUser = user;
         refreshProductTable();
         cart.clear();
         originalQuantities.clear();
         updateCartTable();
+    }
+    
+    // Add this method to actually update the database when the "Add to Cart" button is clicked
+    private void addProductToCart(Product product) {
+        // If this is the first time adding this product to cart, store original quantity
+        if (!originalQuantities.containsKey(product.getId())) {
+            originalQuantities.put(product.getId(), product.getQuantity());
+        }
+        
+        // Decrement product quantity in database
+        int newQuantity = product.getQuantity() - 1;
+        boolean updated = ECommerceStore.updateProduct(
+            product.getId(), product.getName(), product.getPrice(), newQuantity);
+        
+        if (updated) {
+            // Add to cart
+            cart.add(product);
+            // Update tables
+            updateCartTable();
+            refreshProductTable();
+            JOptionPane.showMessageDialog(this, "Product added to cart!", 
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+        } else {
+            JOptionPane.showMessageDialog(this, "Failed to update product quantity.", 
+                "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 }
