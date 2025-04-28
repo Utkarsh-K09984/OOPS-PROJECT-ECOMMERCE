@@ -1,6 +1,0 @@
-1,Laptop,55000.0,5
-2,Smartphone,25000.0,9
-3,Headphones,2000.0,14
-4,Keyboard,1500.0,6
-5,Mouse,900.0,15
-6,IPhone,60000.0,9
