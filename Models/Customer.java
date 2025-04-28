@@ -71,6 +71,7 @@ public class Customer extends User {
             return;
         }
         System.out.println("Order placed successfully! 🎉");
+        
         cart.clear();
     }
 }

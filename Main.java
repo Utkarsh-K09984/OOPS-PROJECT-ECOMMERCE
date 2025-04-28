@@ -15,7 +15,6 @@ public class Main {
     public static void main(String[] args) {
         loadUsers();
 
-        // Add default admin if not present
         if (users.stream().noneMatch(u -> u instanceof Admin)) {
             users.add(new Admin("admin", "admin123"));
             saveUsers();
@@ -32,7 +31,7 @@ public class Main {
             System.out.println("4. Exit");
             System.out.print("Enter choice: ");
             choice = sc.nextInt();
-            sc.nextLine(); // clear buffer
+            sc.nextLine(); 
 
             switch (choice) {
                 case 1 -> login("admin");

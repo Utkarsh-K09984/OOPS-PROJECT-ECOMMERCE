@@ -1,11 +1,11 @@
 package Models;
 
-import Interfaces.UserOperations;
+import Interfaces.AdminOperations;
 import Store.ECommerceStore;
 
 import java.util.Scanner;
 
-public class Admin extends User implements UserOperations {
+public class Admin extends User implements AdminOperations {
     public Admin(String username, String password) {
         super(username, password);
     }
