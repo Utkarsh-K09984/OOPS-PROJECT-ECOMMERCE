@@ -1,3 +1,4 @@
+import GUI.ECommerceGUI;
 import Models.Admin;
 import Models.Customer;
 import Models.User;
@@ -5,7 +6,8 @@ import Models.User;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 public class Main {
     static List<User> users = new ArrayList<>();
@@ -13,37 +15,24 @@ public class Main {
     private static final String CUSTOMER_FILE = "data/customers.txt";
 
     public static void main(String[] args) {
-        loadUsers();
-
-        if (users.stream().noneMatch(u -> u instanceof Admin)) {
-            users.add(new Admin("admin", "admin123"));
-            saveUsers();
+        // Set look and feel to system default
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        Scanner sc = new Scanner(System.in);
-        int choice;
-
-        do {
-            System.out.println("\n--- Welcome to E-Commerce Store ---");
-            System.out.println("1. Admin Login");
-            System.out.println("2. Customer Register");
-            System.out.println("3. Customer Login");
-            System.out.println("4. Exit");
-            System.out.print("Enter choice: ");
-            choice = sc.nextInt();
-            sc.nextLine(); 
-
-            switch (choice) {
-                case 1 -> login("admin");
-                case 2 -> registerCustomer();
-                case 3 -> login("customer");
-                case 4 -> System.out.println("Thank you for visiting!");
-                default -> System.out.println("Invalid option. Please try again.");
-            }
-
-        } while (choice != 4);
+        
+        // Launch the GUI application
+        SwingUtilities.invokeLater(() -> {
+            ECommerceGUI app = new ECommerceGUI();
+            app.setVisible(true);
+        });
     }
 
+    // The following methods are kept for reference but are no longer used directly
+    // as the GUI now handles these operations
+    
+    /*
     static void registerCustomer() {
         Scanner sc = new Scanner(System.in);
         System.out.print("Enter username: ");
@@ -120,4 +109,5 @@ public class Main {
             System.out.println("Error saving users.");
         }
     }
+    */
 }

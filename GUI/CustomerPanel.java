@@ -8,13 +8,17 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 public class CustomerPanel extends JPanel {
     private ECommerceGUI parent;
     private Customer currentUser;
     private List<Product> cart = new ArrayList<>();
+    // Map to track original quantities of products in cart
+    private Map<Integer, Integer> originalQuantities = new HashMap<>();
     
     private JTable productTable;
     private DefaultTableModel productTableModel;
@@ -110,8 +114,21 @@ public class CustomerPanel extends JPanel {
             
             Product product = ECommerceStore.getProductById(id);
             if (product != null) {
+                // Store original quantity if this is the first time adding this product
+                if (!originalQuantities.containsKey(product.getId())) {
+                    originalQuantities.put(product.getId(), product.getQuantity());
+                }
+                
+                // Decrease product quantity by 1
+                product.setQuantity(product.getQuantity() - 1);
+                
+                // Add product to cart
                 cart.add(product);
+                
+                // Update tables
                 updateCartTable();
+                refreshProductTable();
+                
                 JOptionPane.showMessageDialog(parent, "Product added to cart!", 
                         "Success", JOptionPane.INFORMATION_MESSAGE);
             }
@@ -168,8 +185,21 @@ public class CustomerPanel extends JPanel {
                 return;
             }
             
+            // Get the product being removed
+            Product removedProduct = cart.get(selectedRow);
+            
+            // Remove from cart
             cart.remove(selectedRow);
+            
+            // Restore one quantity to the product in inventory
+            Product inventoryProduct = ECommerceStore.getProductById(removedProduct.getId());
+            if (inventoryProduct != null) {
+                inventoryProduct.setQuantity(inventoryProduct.getQuantity() + 1);
+            }
+            
+            // Update tables
             updateCartTable();
+            refreshProductTable();
         });
         
         clearButton.addActionListener(e -> {
@@ -184,8 +214,16 @@ public class CustomerPanel extends JPanel {
                     "Confirm Clear", JOptionPane.YES_NO_OPTION);
             
             if (confirm == JOptionPane.YES_OPTION) {
+                // Restore all original quantities
+                restoreOriginalQuantities();
+                
+                // Clear cart
                 cart.clear();
+                originalQuantities.clear();
+                
+                // Update tables
                 updateCartTable();
+                refreshProductTable();
             }
         });
         
@@ -201,12 +239,19 @@ public class CustomerPanel extends JPanel {
                     "Confirm Checkout", JOptionPane.YES_NO_OPTION);
             
             if (confirm == JOptionPane.YES_OPTION) {
-                // Process the order - in a real app this would update inventory, etc.
+                // Calculate total
                 double total = cart.stream().mapToDouble(Product::getPrice).sum();
+                
+                // Save the updated quantities to file
+                ECommerceStore.saveProducts();
+                
                 JOptionPane.showMessageDialog(parent, 
                         "Order placed successfully!\nTotal: $" + String.format("%.2f", total), 
                         "Checkout Complete", JOptionPane.INFORMATION_MESSAGE);
+                
+                // Clear cart and original quantities map
                 cart.clear();
+                originalQuantities.clear();
                 updateCartTable();
             }
         });
@@ -259,10 +304,21 @@ public class CustomerPanel extends JPanel {
         totalLabel.setText("Total: $" + String.format("%.2f", total));
     }
     
+    // Helper method to restore original quantities
+    private void restoreOriginalQuantities() {
+        for (Map.Entry<Integer, Integer> entry : originalQuantities.entrySet()) {
+            Product product = ECommerceStore.getProductById(entry.getKey());
+            if (product != null) {
+                product.setQuantity(entry.getValue());
+            }
+        }
+    }
+    
     public void setCurrentUser(Customer user) {
         this.currentUser = user;
         refreshProductTable();
         cart.clear();
+        originalQuantities.clear();
         updateCartTable();
     }
 }
