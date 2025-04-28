@@ -7,7 +7,7 @@ This is an ecommerce application built with Java Swing, JDBC MySQL Database.
 - [x] Integrate File handling for data storage
 - [x] Start with a basic GUI focusing more on functionalities
 - [x] Integrate JDBC (MySQL) for data storage
-- [ ] Create different tables and their schemas based on the model
+- [x] Create different tables and their schemas based on the model
 - [ ] Polish the UI
 - [ ] Finish with the documentation
 
@@ -130,6 +130,7 @@ EXIT;
 
 ```mermaid
 classDiagram
+    %% Core Models
     class User {
         -String username
         -String password
@@ -140,7 +141,7 @@ classDiagram
     }
     
     class Customer {
-        -List~Product~ cart
+        -Map~Integer, Integer~ cart
         +showMenu()
         -addToCart()
         -viewCart()
@@ -163,43 +164,123 @@ classDiagram
         +getPrice() double
         +getQuantity() int
         +setQuantity(int)
+        +setName(String)
+        +setPrice(double)
         +toString() String
     }
     
-    class Main {
-        -static List~User~ users
-        -static final String ADMIN_FILE
-        -static final String CUSTOMER_FILE
-        +static main(String[])
-        +static registerCustomer()
-        +static login(String)
-        -static loadUsers()
-        -static saveUsers()
-    }
-    
+    %% Store Management
     class ECommerceStore {
-        -static final String PRODUCT_FILE
         -static List~Product~ products
-        -static int productIdCounter
         +static addProduct(String, double, int)
         +static removeProduct(int)
         +static listProducts()
         +static getProductById(int)
-        -static loadProducts()
-        -static saveProducts()
+        +static updateProduct(int, String, double, int)
+        +static getAllProducts() List~Product~
+        +static saveProducts()
     }
     
-    class UserOperations {
+    %% Interfaces
+    class AdminOperations {
+        <<interface>>
         +addProduct()
         +removeProduct()
     }
     
+    %% Database Connection
+    class DatabaseConnection {
+        -static DatabaseConnection instance
+        -Connection connection
+        -static final String JDBC_URL
+        -static final String USERNAME
+        -static final String PASSWORD
+        -DatabaseConnection()
+        +static getInstance() DatabaseConnection
+        +getConnection() Connection
+        +closeConnection()
+    }
+    
+    %% GUI Classes
+    class ECommerceGUI {
+        -static List~User~ users
+        -CardLayout cardLayout
+        -JPanel mainPanel
+        -LoginPanel loginPanel
+        -RegisterPanel registerPanel
+        -AdminPanel adminPanel
+        -CustomerPanel customerPanel
+        +showPanel(String)
+        +loginUser(String, String, String)
+        +registerCustomer(String, String)
+        -loadUsers()
+        -ensureDefaultAdmin()
+        +main(String[])
+    }
+    
+    class LoginPanel {
+        -ECommerceGUI parent
+        -JTextField usernameField
+        -JPasswordField passwordField
+        -JRadioButton adminRadio
+        -JRadioButton customerRadio
+    }
+    
+    class RegisterPanel {
+        -ECommerceGUI parent
+        -JTextField usernameField
+        -JPasswordField passwordField
+        -JPasswordField confirmPasswordField
+    }
+    
+    class AdminPanel {
+        -ECommerceGUI parent
+        -Admin currentUser
+        -JTable productTable
+        -DefaultTableModel tableModel
+        -JTextField nameField
+        -JTextField priceField
+        -JTextField quantityField
+        -JTextField idField
+        +setCurrentUser(Admin)
+        +refreshProductTable()
+    }
+    
+    class CustomerPanel {
+        -ECommerceGUI parent
+        -Customer currentUser
+        -List~Product~ cart
+        -Map~Integer, Integer~ originalQuantities
+        -JTable productTable
+        -DefaultTableModel productTableModel
+        -JTable cartTable
+        -DefaultTableModel cartTableModel
+        -JLabel totalLabel
+        +setCurrentUser(Customer)
+        +refreshProductTable()
+    }
+    
+    class Main {
+        +main(String[])
+    }
+    
+    %% Relationships
     User <|-- Customer
     User <|-- Admin
-    UserOperations <|.. Admin
-    Customer o-- "*" Product : contains
-    Main -- "*" User : manages
-    ECommerceStore -- "*" Product : manages
+    AdminOperations <|.. Admin
+    Main -- ECommerceGUI : launches
+    ECommerceGUI *-- LoginPanel
+    ECommerceGUI *-- RegisterPanel
+    ECommerceGUI *-- AdminPanel
+    ECommerceGUI *-- CustomerPanel
+    ECommerceGUI -- DatabaseConnection : uses
+    AdminPanel -- ECommerceStore : uses
+    CustomerPanel -- ECommerceStore : uses
+    ECommerceStore -- DatabaseConnection : uses
+    AdminPanel -- Admin : manages
+    CustomerPanel -- Customer : manages
+    CustomerPanel -- Product : contains in cart
+    ECommerceStore -- Product : manages
 ```
 
 ## Application Flow
