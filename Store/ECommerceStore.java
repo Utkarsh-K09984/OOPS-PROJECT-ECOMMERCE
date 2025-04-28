@@ -80,7 +80,7 @@ public class ECommerceStore {
         }
     }
 
-    private static void saveProducts() {
+    public static void saveProducts() {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(PRODUCT_FILE))) {
             for (Product p : products) {
                 bw.write(p.getId() + "," + p.getName() + "," + p.getPrice() + "," + p.getQuantity());
