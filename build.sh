@@ -111,11 +111,13 @@ function show_banner {
 function print_usage {
     echo -e "${YELLOW}Usage: ./build.sh [OPTIONS]${NC}"
     echo "Options:"
-    echo "  --clean         Clean previous build artifacts"
-    echo "  --build-only    Only compile the application without running it"
-    echo "  --run-only      Run the application without recompiling"
-    echo "  --docker-reset  Restart the Docker container from scratch (WARNING: resets database)"
-    echo "  --help          Show this help message"
+    echo "  --clean                Clean previous build artifacts"
+    echo "  --build-only           Only compile the application without running it"
+    echo "  --run-only             Run the application without recompiling"
+    echo "  --docker-reset         Restart the Docker container from scratch (WARNING: resets database)"
+    echo "  --install-dependencies  Install all required dependencies (Java, Docker, etc.)"
+    echo "  -i                     Short for --install-dependencies"
+    echo "  --help                 Show this help message"
     echo ""
 }
 
@@ -151,181 +153,248 @@ function check_mysql_connector {
     fi
 }
 
+# Function to install Docker
+function install_docker {
+    echo -e "${YELLOW}Installing Docker for $OS...${NC}"
+    
+    case "$OS" in
+        linux)
+            # Check Linux distribution
+            if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                DISTRO=$NAME
+            else
+                DISTRO="Unknown"
+            fi
+            
+            # Install Docker based on the distribution
+            case "$DISTRO" in
+                *"Ubuntu"*|*"Debian"*)
+                    echo "Detected Ubuntu/Debian-based system"
+                    sudo apt-get update
+                    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+                    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+                    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+                    sudo apt-get update
+                    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+                    ;;
+                *"Fedora"*|*"CentOS"*|*"Red Hat"*)
+                    echo "Detected Fedora/CentOS/RHEL system"
+                    sudo dnf -y install dnf-plugins-core
+                    sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
+                    sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+                    ;;
+                *"Arch"*)
+                    echo "Detected Arch Linux"
+                    sudo pacman -Syu --noconfirm docker docker-compose
+                    ;;
+                *)
+                    echo -e "${RED}Unsupported Linux distribution. Please install Docker manually.${NC}"
+                    echo "Visit https://docs.docker.com/engine/install/ for instructions."
+                    exit 1
+                    ;;
+            esac
+            
+            # Start and enable Docker service
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            
+            # Add current user to docker group to avoid using sudo
+            sudo usermod -aG docker $USER
+            echo -e "${GREEN}Docker has been installed!${NC}"
+            echo -e "${YELLOW}NOTE: You might need to log out and log back in to use Docker without sudo.${NC}"
+            ;;
+            
+        macos)
+            # Check if Homebrew is installed
+            if command -v brew &> /dev/null; then
+                echo -e "${YELLOW}Using Homebrew to install Docker...${NC}"
+                
+                # Install Docker using Homebrew
+                brew install --cask docker
+                
+                if [ $? -eq 0 ]; then
+                    echo -e "${GREEN}Docker has been installed via Homebrew!${NC}"
+                    echo -e "${YELLOW}Starting Docker Desktop...${NC}"
+                    
+                    # Start Docker Desktop
+                    open -a Docker
+                    
+                    echo -e "${YELLOW}Waiting for Docker to start (this may take a minute)...${NC}"
+                    echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
+                    
+                    # Give user time for Docker to start
+                    for i in {1..30}; do
+                        echo -n "."
+                        sleep 1
+                        # Check if Docker is running yet
+                        if docker info &>/dev/null; then
+                            echo ""
+                            echo -e "${GREEN}Docker is now running!${NC}"
+                            break
+                        fi
+                        # If we've waited 30 seconds and Docker isn't running, continue anyway
+                        if [ $i -eq 30 ]; then
+                            echo ""
+                            echo -e "${YELLOW}Docker might not be fully started yet. You may need to open Docker Desktop manually.${NC}"
+                        fi
+                    done
+                else
+                    echo -e "${RED}Failed to install Docker via Homebrew.${NC}"
+                    
+                    # Alternative: manual download
+                    echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
+                    echo -e "https://www.docker.com/products/docker-desktop"
+                    echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
+                    read
+                fi
+            else
+                # If Homebrew is not installed, try to install it
+                echo -e "${YELLOW}Homebrew not found. Attempting to install Homebrew...${NC}"
+                /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                
+                if command -v brew &> /dev/null; then
+                    echo -e "${GREEN}Homebrew installed successfully!${NC}"
+                    echo -e "${YELLOW}Now installing Docker...${NC}"
+                    brew install --cask docker
+                    
+                    echo -e "${YELLOW}Starting Docker Desktop...${NC}"
+                    open -a Docker
+                    echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
+                    echo -e "${YELLOW}Waiting for Docker to start...${NC}"
+                    sleep 20
+                else
+                    echo -e "${RED}Could not install Homebrew. Manual Docker installation required.${NC}"
+                    echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
+                    echo -e "https://www.docker.com/products/docker-desktop"
+                    echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
+                    read
+                fi
+            fi
+            ;;
+            
+        windows)
+            echo -e "${YELLOW}Please download and install Docker Desktop for Windows from:${NC}"
+            echo -e "https://www.docker.com/products/docker-desktop"
+            echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
+            read
+            ;;
+            
+        *)
+            echo -e "${RED}Unsupported operating system. Please install Docker manually.${NC}"
+            echo "Visit https://docs.docker.com/engine/install/ for instructions."
+            exit 1
+            ;;
+    esac
+}
+
+# Function to install Docker Compose
+function install_docker_compose {
+    echo -e "${YELLOW}Installing Docker Compose...${NC}"
+    
+    case "$OS" in
+        linux)
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            echo -e "${GREEN}Docker Compose installed successfully!${NC}"
+            ;;
+            
+        macos)
+            if command -v brew &> /dev/null; then
+                brew install docker-compose
+                echo -e "${GREEN}Docker Compose installed successfully!${NC}"
+            else
+                echo -e "${RED}Homebrew is not installed. Cannot install Docker Compose.${NC}"
+                echo -e "${YELLOW}Please install Docker Desktop which includes Docker Compose.${NC}"
+            fi
+            ;;
+            
+        windows)
+            echo -e "${YELLOW}Docker Compose is typically included with Docker Desktop for Windows.${NC}"
+            echo -e "${YELLOW}If it's not working, please reinstall Docker Desktop.${NC}"
+            ;;
+            
+        *)
+            echo -e "${RED}Cannot install Docker Compose on unknown OS.${NC}"
+            exit 1
+            ;;
+    esac
+}
+
 # Function to check if Docker is installed and install if not
 function check_and_install_docker {
     echo -e "${YELLOW}Checking if Docker is installed...${NC}"
     
     if ! command -v docker &> /dev/null; then
         echo -e "${RED}Docker is not installed.${NC}"
+        echo -e "${YELLOW}You can run './build.sh --install-dependencies' or './build.sh -i' to install Docker.${NC}"
+        read -p "Would you like to install Docker now? (y/n): " install_docker_now
         
-        case "$OS" in
-            linux)
-                echo -e "${YELLOW}Installing Docker for Linux...${NC}"
-                
-                # Check Linux distribution
-                if [ -f /etc/os-release ]; then
-                    . /etc/os-release
-                    DISTRO=$NAME
-                else
-                    DISTRO="Unknown"
-                fi
-                
-                # Install Docker based on the distribution
-                case "$DISTRO" in
-                    *"Ubuntu"*|*"Debian"*)
-                        echo "Detected Ubuntu/Debian-based system"
-                        sudo apt-get update
-                        sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
-                        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-                        sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-                        sudo apt-get update
-                        sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-                        ;;
-                    *"Fedora"*|*"CentOS"*|*"Red Hat"*)
-                        echo "Detected Fedora/CentOS/RHEL system"
-                        sudo dnf -y install dnf-plugins-core
-                        sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
-                        sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-                        ;;
-                    *"Arch"*)
-                        echo "Detected Arch Linux"
-                        sudo pacman -Syu --noconfirm docker docker-compose
-                        ;;
-                    *)
-                        echo -e "${RED}Unsupported Linux distribution. Please install Docker manually.${NC}"
-                        echo "Visit https://docs.docker.com/engine/install/ for instructions."
-                        exit 1
-                        ;;
-                esac
-                
-                # Start and enable Docker service
-                sudo systemctl start docker
-                sudo systemctl enable docker
-                
-                # Add current user to docker group to avoid using sudo
-                sudo usermod -aG docker $USER
-                echo -e "${GREEN}Docker has been installed!${NC}"
-                echo -e "${YELLOW}NOTE: You might need to log out and log back in to use Docker without sudo.${NC}"
-                ;;
-                
-            macos)
-                echo -e "${YELLOW}Installing Docker for macOS...${NC}"
-                
-                # Check if Homebrew is installed
-                if command -v brew &> /dev/null; then
-                    echo -e "${YELLOW}Using Homebrew to install Docker...${NC}"
-                    
-                    # Install Docker using Homebrew
-                    brew install --cask docker
-                    
-                    if [ $? -eq 0 ]; then
-                        echo -e "${GREEN}Docker has been installed via Homebrew!${NC}"
-                        echo -e "${YELLOW}Starting Docker Desktop...${NC}"
-                        
-                        # Start Docker Desktop
-                        open -a Docker
-                        
-                        echo -e "${YELLOW}Waiting for Docker to start (this may take a minute)...${NC}"
-                        # Wait for Docker to start
-                        echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
-                        
-                        # Give user time to complete setup
-                        for i in {1..30}; do
-                            echo -n "."
-                            sleep 1
-                            # Check if Docker is running yet
-                            if docker info &>/dev/null; then
-                                echo ""
-                                echo -e "${GREEN}Docker is now running!${NC}"
-                                break
-                            fi
-                            # If we've waited 30 seconds and Docker isn't running, continue anyway
-                            if [ $i -eq 30 ]; then
-                                echo ""
-                                echo -e "${YELLOW}Docker might not be fully started yet. You may need to open Docker Desktop manually.${NC}"
-                            fi
-                        done
-                    else
-                        echo -e "${RED}Failed to install Docker via Homebrew.${NC}"
-                        echo -e "${YELLOW}Attempting alternative installation method...${NC}"
-                        
-                        # Alternative: manual download
-                        echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
-                        echo -e "https://www.docker.com/products/docker-desktop"
-                        echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
-                        read
-                    fi
-                else
-                    # If Homebrew is not installed, try to install it
-                    echo -e "${YELLOW}Homebrew not found. Attempting to install Homebrew...${NC}"
-                    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-                    
-                    if command -v brew &> /dev/null; then
-                        echo -e "${GREEN}Homebrew installed successfully!${NC}"
-                        echo -e "${YELLOW}Now installing Docker...${NC}"
-                        brew install --cask docker
-                        
-                        echo -e "${YELLOW}Starting Docker Desktop...${NC}"
-                        open -a Docker
-                        echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
-                        echo -e "${YELLOW}Waiting for Docker to start...${NC}"
-                        sleep 20
-                    else
-                        echo -e "${RED}Could not install Homebrew. Manual Docker installation required.${NC}"
-                        echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
-                        echo -e "https://www.docker.com/products/docker-desktop"
-                        echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
-                        read
-                    fi
-                fi
-                ;;
-                
-            windows)
-                echo -e "${YELLOW}Docker needs to be installed manually on Windows.${NC}"
-                echo "Please download and install Docker Desktop from https://www.docker.com/products/docker-desktop"
-                echo "After installation, press Enter to continue or Ctrl+C to exit..."
-                read
-                ;;
-                
-            *)
-                echo -e "${RED}Unsupported operating system. Please install Docker manually.${NC}"
-                echo "Visit https://docs.docker.com/engine/install/ for instructions."
-                exit 1
-                ;;
-        esac
+        if [[ "$install_docker_now" =~ ^[Yy]$ ]]; then
+            install_docker
+        else
+            echo -e "${RED}Docker is required to run this application.${NC}"
+            echo -e "${YELLOW}Please install Docker manually or run this script with '--install-dependencies' flag.${NC}"
+            exit 1
+        fi
     else
         echo -e "${GREEN}Docker is already installed.${NC}"
     fi
     
     # Check for docker-compose
     if ! command -v docker-compose &> /dev/null && ! command -v docker compose &> /dev/null; then
-        echo -e "${YELLOW}Docker Compose not found. Installing...${NC}"
+        echo -e "${YELLOW}Docker Compose not found.${NC}"
+        echo -e "${YELLOW}You can run './build.sh --install-dependencies' or './build.sh -i' to install Docker Compose.${NC}"
+        read -p "Would you like to install Docker Compose now? (y/n): " install_compose_now
         
-        case "$OS" in
-            linux)
-                sudo curl -L "https://github.com/docker/compose/releases/download/v2.18.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-                sudo chmod +x /usr/local/bin/docker-compose
-                ;;
-                
-            macos)
-                brew install docker-compose
-                ;;
-                
-            windows)
-                echo "Docker Compose is typically included with Docker Desktop for Windows."
-                echo "If it's not working, please reinstall Docker Desktop."
-                ;;
-                
-            *)
-                echo -e "${RED}Cannot install Docker Compose on unknown OS.${NC}"
-                exit 1
-                ;;
-        esac
-        
-        echo -e "${GREEN}Docker Compose has been installed!${NC}"
+        if [[ "$install_compose_now" =~ ^[Yy]$ ]]; then
+            install_docker_compose
+        else
+            echo -e "${RED}Docker Compose is required to run this application.${NC}"
+            echo -e "${YELLOW}Please install Docker Compose manually or run this script with '--install-dependencies' flag.${NC}"
+            exit 1
+        fi
     else
         echo -e "${GREEN}Docker Compose is already installed.${NC}"
     fi
+}
+
+# Function to install all dependencies required for the project
+function install_dependencies {
+    echo -e "${GREEN}=== Installing all dependencies for the E-Commerce Project ===${NC}"
+    
+    # Install Java
+    echo -e "${YELLOW}Checking and installing Java...${NC}"
+    if ! command -v java &> /dev/null || ! command -v javac &> /dev/null; then
+        check_and_install_java
+    else
+        echo -e "${GREEN}Java is already installed.${NC}"
+        java_version=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+        echo -e "${GREEN}Using Java version: $java_version${NC}"
+    fi
+    
+    # Install Docker
+    echo -e "${YELLOW}Checking and installing Docker...${NC}"
+    if ! command -v docker &> /dev/null; then
+        install_docker
+    else
+        echo -e "${GREEN}Docker is already installed.${NC}"
+    fi
+    
+    # Check for Docker Compose
+    echo -e "${YELLOW}Checking for Docker Compose...${NC}"
+    if ! command -v docker-compose &> /dev/null && ! command -v docker compose &> /dev/null; then
+        install_docker_compose
+    else
+        echo -e "${GREEN}Docker Compose is already installed.${NC}"
+    fi
+    
+    # Download MySQL connector
+    echo -e "${YELLOW}Checking for MySQL connector...${NC}"
+    check_mysql_connector
+    
+    echo -e "${GREEN}=== All dependencies have been installed successfully! ===${NC}"
+    echo -e "${GREEN}You can now run the application with ./build.sh${NC}"
 }
 
 # Function to start Docker if not running
@@ -597,6 +666,7 @@ DO_BUILD=true
 DO_RUN=true
 DOCKER_RESET=false
 AUTO_SHUTDOWN=false
+INSTALL_DEPS=false
 
 # If no arguments, run everything
 if [ $# -eq 0 ]; then
@@ -636,6 +706,10 @@ while [[ $# -gt 0 ]]; do
             AUTO_SHUTDOWN=true
             shift
             ;;
+        --install-dependencies|-i)
+            INSTALL_DEPS=true
+            shift
+            ;;
         --help)
             print_usage
             exit 0
@@ -647,6 +721,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Install dependencies if requested
+if [[ "$INSTALL_DEPS" == "true" ]]; then
+    install_dependencies
+    exit 0
+fi
 
 # Main execution flow
 show_banner
