@@ -19,13 +19,15 @@ This application uses Docker for the database and requires Java to run. The incl
 - Java Development Kit (JDK) 11 or above
 - Docker Desktop (for database)
 
+> **Note:** You don't need to install the prerequisites manually! The build scripts can automatically install Java and Docker if they're not already on your system.
+
 ### Windows
 
 1. Clone or download this repository
 2. Double-click `build.bat` or run it from Command Prompt
 3. Follow the on-screen instructions
    - The script will check for Java and Docker, download the MySQL connector if needed, and start the application
-   - If dependencies are missing, you'll be guided to install them
+   - If dependencies are missing, you'll be guided to install them or you can run `build.bat --install-dependencies`
 
 ### macOS
 
@@ -35,7 +37,7 @@ This application uses Docker for the database and requires Java to run. The incl
 4. Run the script: `./build.sh`
 5. Follow the on-screen instructions
    - The script will check for Java and Docker, download the MySQL connector if needed, and start the application
-   - If dependencies are missing, you'll be guided to install them
+   - If dependencies are missing, you'll be guided to install them or you can run `./build.sh --install-dependencies`
 
 ### Linux
 
@@ -45,7 +47,7 @@ This application uses Docker for the database and requires Java to run. The incl
 4. Run the script: `./build.sh`
 5. Follow the on-screen instructions
    - The script will check for Java and Docker, download the MySQL connector if needed, and start the application
-   - If dependencies are missing, you'll be guided to install them
+   - If dependencies are missing, you'll be guided to install them or you can run `./build.sh --install-dependencies`
 
 ### Command-line Options
 
@@ -56,7 +58,30 @@ Both `build.sh` and `build.bat` support the following options:
 - `--run-only` - Run without recompiling
 - `--docker-reset` - Reset the Docker container and database (WARNING: this will reset all data)
 - `--auto-shutdown` - Automatically stop Docker when application exits
+- `--install-dependencies` - Automatically install all required dependencies (Java, Docker, etc.)
+- `-i` - Short for `--install-dependencies`
 - `--help` - Show help information
+
+### Automatic Dependency Installation
+
+If you're new to programming or don't have Java and Docker installed:
+
+1. Simply run:
+   ```
+   # On Windows:
+   build.bat --install-dependencies
+   
+   # On macOS/Linux:
+   ./build.sh --install-dependencies
+   ```
+
+2. The script will:
+   - Check for Java and install it if needed
+   - Check for Docker and install it if needed (including Docker Desktop on macOS/Windows)
+   - Download the MySQL connector
+   - Guide you through any necessary steps
+
+This means you can run the application without any prior setup - the script handles everything!
 
 ### Default Credentials
 

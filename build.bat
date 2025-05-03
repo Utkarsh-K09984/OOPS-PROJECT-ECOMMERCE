@@ -26,12 +26,131 @@ echo.
     echo Docker services stopped.
     goto :eof
 
+:: Function to install Docker
+:install_docker
+    echo Installing Docker Desktop for Windows...
+    
+    :: Create temp directory for Docker installer
+    if not exist "%TEMP%\docker-install" mkdir "%TEMP%\docker-install"
+    
+    :: Download Docker Desktop installer
+    echo Downloading Docker Desktop installer...
+    powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/Docker%%20Desktop%%20Installer.exe' -OutFile '%TEMP%\docker-install\DockerDesktopInstaller.exe' }"
+    
+    if exist "%TEMP%\docker-install\DockerDesktopInstaller.exe" (
+        echo Docker Desktop installer downloaded successfully.
+        echo Running Docker Desktop installer...
+        echo Please complete the installation wizard that appears.
+        
+        :: Run the installer
+        start "" /wait "%TEMP%\docker-install\DockerDesktopInstaller.exe"
+        
+        echo Docker Desktop installation completed.
+        echo Please restart your computer if prompted, then run this script again.
+        echo.
+        echo NOTE: After restarting, make sure Docker Desktop is running
+        echo       before running this script again.
+    ) else (
+        echo Failed to download Docker Desktop installer.
+        echo Please download and install Docker Desktop manually from:
+        echo https://www.docker.com/products/docker-desktop
+        echo.
+        echo After installation, run this script again.
+    )
+    goto :eof
+
+:: Function to install Java
+:install_java
+    echo Java is not installed or not in PATH.
+    echo.
+    echo The script will download and install OpenJDK for you.
+    set /p install_confirm=Would you like to install Java now? (y/n): 
+    
+    if /i "!install_confirm!"=="y" (
+        :: Create temp directory for Java installer
+        if not exist "%TEMP%\java-install" mkdir "%TEMP%\java-install"
+        
+        :: Download Java installer - using Adoptium OpenJDK
+        echo Downloading OpenJDK installer...
+        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.8%%2B7/OpenJDK17U-jdk_x64_windows_hotspot_17.0.8_7.msi' -OutFile '%TEMP%\java-install\OpenJDK17U.msi' }"
+        
+        if exist "%TEMP%\java-install\OpenJDK17U.msi" (
+            echo OpenJDK installer downloaded successfully.
+            echo Running OpenJDK installer...
+            echo Please complete the installation wizard that appears.
+            
+            :: Run the installer
+            start "" /wait "%TEMP%\java-install\OpenJDK17U.msi"
+            
+            echo Java installation completed.
+            echo Please restart this script to use the newly installed Java.
+            exit /b 1
+        ) else (
+            echo Failed to download OpenJDK installer.
+            echo Please download and install Java manually from:
+            echo https://adoptium.net/ or https://www.oracle.com/java/technologies/downloads/
+            echo After installation, make sure to add Java to your PATH.
+            echo Then run this script again.
+            exit /b 1
+        )
+    ) else (
+        echo Java installation skipped.
+        echo Please install Java manually from:
+        echo https://adoptium.net/ or https://www.oracle.com/java/technologies/downloads/
+        echo After installation, make sure to add Java to your PATH.
+        echo Then run this script again.
+        exit /b 1
+    )
+    goto :eof
+
+:: Function to install all dependencies
+:install_dependencies
+    echo === Installing all dependencies for the E-Commerce Project ===
+    
+    :: Check and install Java
+    echo Checking and installing Java...
+    java -version >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        call :install_java
+        if %ERRORLEVEL% neq 0 (
+            exit /b 1
+        )
+    ) else (
+        echo Java is already installed.
+        for /f "tokens=3" %%g in ('java -version 2^>^&1 ^| findstr /i "version"') do (
+            set JAVA_VERSION=%%g
+        )
+        set JAVA_VERSION=!JAVA_VERSION:"=!
+        echo Using Java version: !JAVA_VERSION!
+    )
+    
+    :: Check and install Docker
+    echo Checking and installing Docker...
+    docker --version >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        call :install_docker
+        echo After Docker installation, run this script again.
+        exit /b 1
+    ) else (
+        echo Docker is already installed.
+    )
+    
+    :: Download MySQL connector
+    echo Checking for MySQL connector...
+    call :check_mysql_connector
+    
+    echo === All dependencies have been installed successfully! ===
+    echo You can now run the application with build.bat
+    
+    exit /b 0
+
 :: Parse command line arguments
 set CLEAN=false
 set DO_BUILD=true
 set DO_RUN=true
 set DOCKER_RESET=false
 set AUTO_SHUTDOWN=false
+set INSTALL_DEPS=false
 
 :: If no arguments, run everything
 if "%~1"=="" (
@@ -74,10 +193,26 @@ if "%~1"=="" (
         shift
         goto :parse_args
     )
+    if "%~1"=="--install-dependencies" (
+        set INSTALL_DEPS=true
+        shift
+        goto :parse_args
+    )
+    if "%~1"=="-i" (
+        set INSTALL_DEPS=true
+        shift
+        goto :parse_args
+    )
     if "%~1"=="--help" (
         call :print_usage
         exit /b 0
     )
+)
+
+:: Install dependencies if requested
+if "%INSTALL_DEPS%"=="true" (
+    call :install_dependencies
+    exit /b 0
 )
 
 :: Step 1: Check for MySQL connector
@@ -119,12 +254,14 @@ exit /b 0
 :print_usage
     echo Usage: build.bat [OPTIONS]
     echo Options:
-    echo   --clean         Clean previous build artifacts
-    echo   --build-only    Only compile the application without running it
-    echo   --run-only      Run the application without recompiling
-    echo   --docker-reset  Restart the Docker container from scratch (WARNING: resets database)
-    echo   --auto-shutdown Automatically stop Docker when application exits
-    echo   --help          Show this help message
+    echo   --clean                Clean previous build artifacts
+    echo   --build-only           Only compile the application without running it
+    echo   --run-only             Run the application without recompiling
+    echo   --docker-reset         Restart the Docker container from scratch (WARNING: resets database)
+    echo   --auto-shutdown        Automatically stop Docker when application exits
+    echo   --install-dependencies Install all required dependencies (Java, Docker, etc.)
+    echo   -i                     Short for --install-dependencies
+    echo   --help                 Show this help message
     echo.
     exit /b 0
 
@@ -160,12 +297,19 @@ exit /b 0
     java -version >nul 2>&1
     if %ERRORLEVEL% neq 0 (
         echo Java Development Kit (JDK) is not installed.
-        echo Please download and install JDK 17 from:
-        echo https://adoptium.net/ or https://www.oracle.com/java/technologies/downloads/
-        echo After installation, make sure to add Java to your PATH.
-        echo Press any key to exit...
-        pause >nul
-        exit /b 1
+        echo You can run 'build.bat --install-dependencies' or 'build.bat -i' to install Java.
+        set /p install_java_now=Would you like to install Java now? (y/n): 
+        
+        if /i "!install_java_now!"=="y" (
+            call :install_java
+            if %ERRORLEVEL% neq 0 (
+                exit /b 1
+            )
+        ) else (
+            echo Java is required to run this application.
+            echo Please install Java manually or run this script with '--install-dependencies' flag.
+            exit /b 1
+        )
     )
     
     echo Java is installed.
@@ -185,35 +329,18 @@ exit /b 0
     docker --version >nul 2>&1
     if %ERRORLEVEL% neq 0 (
         echo Docker is not installed.
-        echo Attempting to install Docker Desktop automatically...
+        echo You can run 'build.bat --install-dependencies' or 'build.bat -i' to install Docker.
+        set /p install_docker_now=Would you like to install Docker now? (y/n): 
         
-        :: Create temp directory for Docker installer
-        if not exist "%TEMP%\docker-install" mkdir "%TEMP%\docker-install"
-        
-        :: Download Docker Desktop installer
-        echo Downloading Docker Desktop installer...
-        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe' -OutFile '%TEMP%\docker-install\DockerDesktopInstaller.exe' }"
-        
-        if exist "%TEMP%\docker-install\DockerDesktopInstaller.exe" (
-            echo Docker Desktop installer downloaded successfully.
-            echo Running Docker Desktop installer...
-            echo Please complete the installation wizard that appears.
-            
-            :: Run the installer
-            start "" /wait "%TEMP%\docker-install\DockerDesktopInstaller.exe"
-            
-            echo Docker installation completed.
-            echo Please restart this script after Docker Desktop is fully started.
-            echo You may need to restart your computer first.
-            pause
+        if /i "!install_docker_now!"=="y" (
+            call :install_docker
+            echo After Docker installation completes, please run this script again.
             exit /b 1
-        ) else (
-            echo Failed to download Docker Desktop installer.
-            echo Please download and install Docker Desktop manually from:
-            echo https://www.docker.com/products/docker-desktop
-            echo After installation, press any key to continue or Ctrl+C to exit...
-            pause >nul
-        )
+        ) else {
+            echo Docker is required to run this application.
+            echo Please install Docker manually or run this script with '--install-dependencies' flag.
+            exit /b 1
+        }
     ) else (
         echo Docker is installed.
     )
