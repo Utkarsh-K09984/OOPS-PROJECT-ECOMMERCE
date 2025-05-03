@@ -2,7 +2,6 @@ import GUI.ECommerceGUI;
 import utils.DatabaseConnection;
 
 import javax.swing.*;
-import java.awt.*;
 import java.sql.Connection;
 import java.sql.SQLException;
 
@@ -26,6 +25,7 @@ public class Main {
             errorMessage += "1. Make sure Docker is running\n";
             errorMessage += "2. Start the MySQL container with: docker-compose up -d\n";
             errorMessage += "3. Try running the application again";
+
             
             JOptionPane.showMessageDialog(null, errorMessage, 
                     "Database Connection Error", JOptionPane.ERROR_MESSAGE);
