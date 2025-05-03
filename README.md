@@ -8,8 +8,7 @@ This is an ecommerce application built with Java Swing, JDBC MySQL Database.
 - [x] Start with a basic GUI focusing more on functionalities
 - [x] Integrate JDBC (MySQL) for data storage
 - [x] Create different tables and their schemas based on the model
-- [ ] Polish the UI
-- [ ] Finish with the documentation
+- [x] Finish with the documentation
 
 ## Installation & Usage
 
