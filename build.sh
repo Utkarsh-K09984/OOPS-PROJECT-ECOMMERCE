@@ -209,10 +209,75 @@ function check_and_install_docker {
                 ;;
                 
             macos)
-                echo -e "${YELLOW}Docker needs to be installed manually on macOS.${NC}"
-                echo "Please download and install Docker Desktop from https://www.docker.com/products/docker-desktop"
-                echo "After installation, press Enter to continue or Ctrl+C to exit..."
-                read
+                echo -e "${YELLOW}Installing Docker for macOS...${NC}"
+                
+                # Check if Homebrew is installed
+                if command -v brew &> /dev/null; then
+                    echo -e "${YELLOW}Using Homebrew to install Docker...${NC}"
+                    
+                    # Install Docker using Homebrew
+                    brew install --cask docker
+                    
+                    if [ $? -eq 0 ]; then
+                        echo -e "${GREEN}Docker has been installed via Homebrew!${NC}"
+                        echo -e "${YELLOW}Starting Docker Desktop...${NC}"
+                        
+                        # Start Docker Desktop
+                        open -a Docker
+                        
+                        echo -e "${YELLOW}Waiting for Docker to start (this may take a minute)...${NC}"
+                        # Wait for Docker to start
+                        echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
+                        
+                        # Give user time to complete setup
+                        for i in {1..30}; do
+                            echo -n "."
+                            sleep 1
+                            # Check if Docker is running yet
+                            if docker info &>/dev/null; then
+                                echo ""
+                                echo -e "${GREEN}Docker is now running!${NC}"
+                                break
+                            fi
+                            # If we've waited 30 seconds and Docker isn't running, continue anyway
+                            if [ $i -eq 30 ]; then
+                                echo ""
+                                echo -e "${YELLOW}Docker might not be fully started yet. You may need to open Docker Desktop manually.${NC}"
+                            fi
+                        done
+                    else
+                        echo -e "${RED}Failed to install Docker via Homebrew.${NC}"
+                        echo -e "${YELLOW}Attempting alternative installation method...${NC}"
+                        
+                        # Alternative: manual download
+                        echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
+                        echo -e "https://www.docker.com/products/docker-desktop"
+                        echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
+                        read
+                    fi
+                else
+                    # If Homebrew is not installed, try to install it
+                    echo -e "${YELLOW}Homebrew not found. Attempting to install Homebrew...${NC}"
+                    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                    
+                    if command -v brew &> /dev/null; then
+                        echo -e "${GREEN}Homebrew installed successfully!${NC}"
+                        echo -e "${YELLOW}Now installing Docker...${NC}"
+                        brew install --cask docker
+                        
+                        echo -e "${YELLOW}Starting Docker Desktop...${NC}"
+                        open -a Docker
+                        echo -e "${YELLOW}Please complete any Docker Desktop onboarding if it appears.${NC}"
+                        echo -e "${YELLOW}Waiting for Docker to start...${NC}"
+                        sleep 20
+                    else
+                        echo -e "${RED}Could not install Homebrew. Manual Docker installation required.${NC}"
+                        echo -e "${YELLOW}Please download and install Docker Desktop manually from:${NC}"
+                        echo -e "https://www.docker.com/products/docker-desktop"
+                        echo -e "${YELLOW}After installation, press Enter to continue or Ctrl+C to exit...${NC}"
+                        read
+                    fi
+                fi
                 ;;
                 
             windows)

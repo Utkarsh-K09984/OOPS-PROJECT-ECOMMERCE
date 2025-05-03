@@ -185,10 +185,35 @@ exit /b 0
     docker --version >nul 2>&1
     if %ERRORLEVEL% neq 0 (
         echo Docker is not installed.
-        echo Please download and install Docker Desktop from:
-        echo https://www.docker.com/products/docker-desktop
-        echo After installation, press any key to continue or Ctrl+C to exit...
-        pause >nul
+        echo Attempting to install Docker Desktop automatically...
+        
+        :: Create temp directory for Docker installer
+        if not exist "%TEMP%\docker-install" mkdir "%TEMP%\docker-install"
+        
+        :: Download Docker Desktop installer
+        echo Downloading Docker Desktop installer...
+        powershell -Command "& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe' -OutFile '%TEMP%\docker-install\DockerDesktopInstaller.exe' }"
+        
+        if exist "%TEMP%\docker-install\DockerDesktopInstaller.exe" (
+            echo Docker Desktop installer downloaded successfully.
+            echo Running Docker Desktop installer...
+            echo Please complete the installation wizard that appears.
+            
+            :: Run the installer
+            start "" /wait "%TEMP%\docker-install\DockerDesktopInstaller.exe"
+            
+            echo Docker installation completed.
+            echo Please restart this script after Docker Desktop is fully started.
+            echo You may need to restart your computer first.
+            pause
+            exit /b 1
+        ) else (
+            echo Failed to download Docker Desktop installer.
+            echo Please download and install Docker Desktop manually from:
+            echo https://www.docker.com/products/docker-desktop
+            echo After installation, press any key to continue or Ctrl+C to exit...
+            pause >nul
+        )
     ) else (
         echo Docker is installed.
     )
